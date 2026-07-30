@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson Differentiator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --board-green: #26392e;
+    --board-green-light: #31473a;
+    --chalk-white: #f2efe4;
+    --chalk-white-dim: #b9bfae;
+    --wood: #6b4530;
+    --wood-dark: #40271a;
+    --wood-light: #8a5c3f;
+    --accent-pink: #d98a94;
+    --accent-blue: #6fa3b7;
+    --accent-gold: #d9a63e;
+    --paper: #eef0e6;
+    --paper-edge: #dcdfd0;
+    --ink: #263127;
+    --ink-soft: #55604f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: linear-gradient(180deg, #cfd3c4 0%, #eef0e6 320px);
+    font-family: 'Work Sans', sans-serif;
+    color: var(--ink);
+    padding: 32px 16px 64px;
+    min-height: 100vh;
+  }
+
+  .room {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  /* ---------- Chalkboard ---------- */
+  .board-frame {
+    background: linear-gradient(160deg, var(--wood-light), var(--wood) 45%, var(--wood-dark));
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 18px 40px -18px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,255,255,0.05);
+  }
+
+  .board {
+    position: relative;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(255,255,255,0.05) 0, transparent 3%),
+      radial-gradient(circle at 78% 32%, rgba(255,255,255,0.04) 0, transparent 2.5%),
+      radial-gradient(circle at 34% 76%, rgba(255,255,255,0.05) 0, transparent 2%),
+      radial-gradient(circle at 62% 88%, rgba(255,255,255,0.04) 0, transparent 2.2%),
+      radial-gradient(circle at 90% 68%, rgba(255,255,255,0.03) 0, transparent 2%),
+      linear-gradient(160deg, var(--board-green-light), var(--board-green));
+    border-radius: 8px;
+    padding: 36px 28px 20px;
+  }
+
+  .chalk-title {
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    color: var(--chalk-white);
+    font-size: clamp(1.9rem, 5vw, 2.6rem);
+    margin: 0 0 6px;
+    text-shadow: 0 0 1px rgba(242,239,228,0.4), 0 0 14px rgba(242,239,228,0.06);
+    letter-spacing: 0.3px;
+  }
+
+  .chalk-sub {
+    font-family: 'Kalam', cursive;
+    color: var(--chalk-white-dim);
+    font-size: 1.05rem;
+    margin: 0 0 26px;
+    max-width: 46ch;
+    line-height: 1.4;
+  }
+
+  form { display: flex; flex-direction: column; gap: 18px; }
+
+  .field label {
+    display: block;
+    font-family: 'Kalam', cursive;
+    color: var(--chalk-white);
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+  }
+
+  .field textarea,
+  .field select {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 2px dashed rgba(242,239,228,0.35);
+    color: var(--chalk-white);
+    font-family: 'Kalam', cursive;
+    font-size: 1.15rem;
+    padding: 6px 4px 10px;
+    resize: vertical;
+    min-height: 56px;
+  }
+
+  .field select {
+    min-height: unset;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--chalk-white-dim) 50%), linear-gradient(135deg, var(--chalk-white-dim) 50%, transparent 50%);
+    background-position: calc(100% - 8px) 14px, calc(100% - 3px) 14px;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+  }
+
+  .field select option { background: var(--board-green); color: var(--chalk-white); font-family: 'Work Sans', sans-serif; }
+
+  .field textarea::placeholder { color: rgba(242,239,228,0.4); }
+
+  .field textarea:focus,
+  .field select:focus {
+    outline: none;
+    border-bottom-color: var(--accent-gold);
+  }
+
+  button:focus-visible,
+  .field textarea:focus-visible,
+  .field select:focus-visible,
+  a:focus-visible {
+    outline: 3px solid var(--accent-gold);
+    outline-offset: 3px;
+  }
+
+  #generateBtn {
+    align-self: flex-start;
+    margin-top: 6px;
+    background: transparent;
+    border: 2px dashed var(--chalk-white-dim);
+    color: var(--chalk-white);
+    font-family: 'Kalam', cursive;
+    font-size: 1.1rem;
+    padding: 10px 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  #generateBtn:hover:not(:disabled) { background: rgba(242,239,228,0.08); }
+  #generateBtn:active:not(:disabled) { transform: scale(0.98); }
+  #generateBtn:disabled { opacity: 0.6; cursor: default; }
+
+  .error-text {
+    font-family: 'Work Sans', sans-serif;
+    color: var(--accent-pink);
+    font-size: 0.9rem;
+    margin: -8px 0 0;
+    min-height: 1.2em;
+  }
+
+  /* Chalk tray */
+  .tray {
+    margin-top: 26px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--wood-dark);
+    border-radius: 0 0 6px 6px;
+  }
+  .chalk-stick {
+    width: 34px; height: 9px;
+    border-radius: 4px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.3);
+  }
+  .chalk-stick.pink { background: var(--accent-pink); }
+  .chalk-stick.blue { background: var(--accent-blue); }
+  .chalk-stick.gold { background: var(--accent-gold); }
+  .eraser {
+    margin-left: auto;
+    width: 46px; height: 16px;
+    background: linear-gradient(180deg, #4a4a4a, #2e2e2e);
+    border-radius: 3px;
+    position: relative;
+  }
+  .eraser::after {
+    content: "";
+    position: absolute; inset: 3px 3px 3px 3px;
+    background: rgba(242,239,228,0.15);
+    border-radius: 2px;
+  }
+
+  /* ---------- Results ---------- */
+  .results {
+    margin-top: 30px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 18px;
+  }
+
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--paper-edge);
+    border-top: 6px solid var(--accent-blue);
+    border-radius: 6px;
+    padding: 18px 18px 20px;
+    box-shadow: 0 10px 24px -16px rgba(0,0,0,0.35);
+    opacity: 0;
+    transform: translateY(10px);
+    animation: settle 0.5s ease forwards;
+  }
+  .card.support { border-top-color: var(--accent-pink); }
+  .card.core { border-top-color: var(--accent-blue); }
+  .card.depth { border-top-color: var(--accent-gold); }
+  .card:nth-child(2) { animation-delay: 0.08s; }
+  .card:nth-child(3) { animation-delay: 0.16s; }
+
+  @keyframes settle {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-tab {
+    display: inline-block;
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+    color: #2a2a24;
+  }
+  .card.support .card-tab { background: var(--accent-pink); }
+  .card.core .card-tab { background: var(--accent-blue); }
+  .card.depth .card-tab { background: var(--accent-gold); }
+
+  .card h3 {
+    font-family: 'Work Sans', sans-serif;
+    font-size: 1.05rem;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .card p {
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    margin: 0 0 10px;
+  }
+  .card .scaffold {
+    font-size: 0.85rem;
+    border-top: 1px dashed var(--paper-edge);
+    padding-top: 10px;
+    margin: 0;
+  }
+  .card .scaffold b { color: var(--ink); }
+
+  .status-card {
+    grid-column: 1 / -1;
+    text-align: center;
+    background: var(--paper);
+    border: 1px dashed var(--paper-edge);
+    border-radius: 6px;
+    padding: 22px;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+  .status-card.error { border-color: var(--accent-pink); }
+  .status-card h3 { font-family: 'Kalam', cursive; margin: 0 0 6px; color: var(--ink); font-size: 1.2rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card { animation: none; opacity: 1; transform: none; }
+  }
+
+  @media (max-width: 520px) {
+    .board { padding: 26px 18px 16px; }
+    #generateBtn { align-self: stretch; text-align: center; }
+  }
+</style>
+</head>
+<body>
+<div class="room">
+
+  <div class="board-frame">
+    <div class="board">
+      <h1 class="chalk-title">Lesson Differentiator</h1>
+      <p class="chalk-sub">Write up an objective, pick a year group, and get three differentiated activities for the lesson.</p>
+
+      <form id="lessonForm">
+        <div class="field">
+          <label for="objective">Learning objective</label>
+          <textarea id="objective" required placeholder="e.g. Explain how the water cycle moves water between the land, sea and sky"></textarea>
+        </div>
+        <div class="field">
+          <label for="yearGroup">Year group</label>
+          <select id="yearGroup">
+            <option>Reception</option>
+            <option>Year 1</option>
+            <option>Year 2</option>
+            <option>Year 3</option>
+            <option>Year 4</option>
+            <option>Year 5</option>
+            <option>Year 6</option>
+            <option>Year 7</option>
+            <option>Year 8</option>
+            <option>Year 9</option>
+            <option>Year 10</option>
+            <option>Year 11</option>
+            <option>Year 12</option>
+            <option>Year 13</option>
+          </select>
+        </div>
+        <p class="error-text" id="errorText"></p>
+        <button type="submit" id="generateBtn">Generate activities</button>
+      </form>
+
+      <div class="tray">
+        <div class="chalk-stick pink"></div>
+        <div class="chalk-stick blue"></div>
+        <div class="chalk-stick gold"></div>
+        <div class="eraser"></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="results" id="results" aria-live="polite"></section>
+
+</div>
+
+<script>
+  const form = document.getElementById('lessonForm');
+  const objectiveEl = document.getElementById('objective');
+  const yearGroupEl = document.getElementById('yearGroup');
+  const btn = document.getElementById('generateBtn');
+  const results = document.getElementById('results');
+  const errorText = document.getElementById('errorText');
+
+  const LEVEL_META = {
+    'Support': { cls: 'support' },
+    'Core': { cls: 'core' },
+    'Greater Depth': { cls: 'depth' }
+  };
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorText.textContent = '';
+    const objective = objectiveEl.value.trim();
+    const yearGroup = yearGroupEl.value;
+
+    if (!objective) {
+      errorText.textContent = 'Add a learning objective first.';
+      objectiveEl.focus();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Chalking up activities…';
+    results.innerHTML = '<div class="status-card"><h3>One moment</h3>Sketching out three versions of this lesson…</div>';
+
+    try {
+      const activities = await generateActivities(objective, yearGroup);
+      renderActivities(activities);
+    } catch (err) {
+      console.error(err);
+      results.innerHTML = `
+        <div class="status-card error">
+          <h3>The chalk snapped</h3>
+          Something went wrong generating activities. Please try again in a moment.
+        </div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Generate activities';
+    }
+  });
+
+  async function generateActivities(objective, yearGroup) {
+    // This calls our own backend (api/generate.js), which holds the API key
+    // privately and talks to Anthropic on the page's behalf.
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ objective, yearGroup })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || ('Request failed: ' + response.status));
+    }
+
+    const text = data.content.map(block => block.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    if (!Array.isArray(parsed) || parsed.length !== 3) {
+      throw new Error('Unexpected response shape');
+    }
+    return parsed;
+  }
+
+  function renderActivities(activities) {
+    results.innerHTML = activities.map(a => {
+      const meta = LEVEL_META[a.level] || { cls: 'core' };
+      return `
+        <article class="card ${meta.cls}">
+          <span class="card-tab">${escapeHtml(a.level)}</span>
+          <h3>${escapeHtml(a.title)}</h3>
+          <p>${escapeHtml(a.activity)}</p>
+          <p class="scaffold"><b>How it's differentiated:</b> ${escapeHtml(a.scaffold)}</p>
+        </article>`;
+    }).join('');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+</script>
+</body>
+</html>

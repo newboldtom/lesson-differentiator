@@ -1,0 +1,8 @@
+{
+  "name": "lesson-differentiator",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "redis": "^6.0.0"
+  }
+}

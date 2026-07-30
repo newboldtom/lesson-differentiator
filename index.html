@@ -277,6 +277,105 @@
     .board { padding: 26px 18px 16px; }
     #generateBtn { align-self: stretch; text-align: center; }
   }
+
+  /* ---------- Save + saved lessons ---------- */
+  .save-row {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: -4px;
+  }
+
+  #saveBtn {
+    background: var(--paper);
+    border: 1px solid var(--paper-edge);
+    color: var(--ink);
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #saveBtn:hover:not(:disabled) { border-color: var(--accent-gold); }
+  #saveBtn:disabled { opacity: 0.6; cursor: default; }
+
+  .save-status {
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+  }
+  .save-status.success { color: #4c7a5e; }
+  .save-status.error { color: var(--accent-pink); }
+
+  .saved-panel {
+    margin-top: 34px;
+    padding-top: 22px;
+    border-top: 1px dashed var(--paper-edge);
+  }
+
+  #toggleSavedBtn {
+    background: none;
+    border: none;
+    color: var(--ink);
+    font-family: 'Work Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 4px 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .saved-list {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .saved-item {
+    background: var(--paper);
+    border: 1px solid var(--paper-edge);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .saved-item-header {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 12px 16px;
+    cursor: pointer;
+    font-family: 'Work Sans', sans-serif;
+    color: var(--ink);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .saved-item-header .obj { font-weight: 600; font-size: 0.92rem; }
+  .saved-item-header .meta { font-size: 0.8rem; color: var(--ink-soft); white-space: nowrap; }
+
+  .saved-item-body {
+    display: none;
+    padding: 4px 16px 16px;
+  }
+  .saved-item.open .saved-item-body { display: block; }
+
+  .saved-item-body .card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    margin-top: 10px;
+  }
+  .saved-item-body .results { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+
+  .saved-empty {
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+  }
 </style>
 </head>
 <body>
@@ -326,6 +425,16 @@
 
   <section class="results" id="results" aria-live="polite"></section>
 
+  <div class="save-row" id="saveRow" style="display:none;">
+    <button type="button" id="saveBtn">Save this lesson</button>
+    <span class="save-status" id="saveStatus"></span>
+  </div>
+
+  <div class="saved-panel">
+    <button type="button" id="toggleSavedBtn">View saved lessons</button>
+    <div class="saved-list" id="savedList" style="display:none;"></div>
+  </div>
+
 </div>
 
 <script>
@@ -335,12 +444,19 @@
   const btn = document.getElementById('generateBtn');
   const results = document.getElementById('results');
   const errorText = document.getElementById('errorText');
+  const saveRow = document.getElementById('saveRow');
+  const saveBtn = document.getElementById('saveBtn');
+  const saveStatus = document.getElementById('saveStatus');
+  const toggleSavedBtn = document.getElementById('toggleSavedBtn');
+  const savedList = document.getElementById('savedList');
 
   const LEVEL_META = {
     'Support': { cls: 'support' },
     'Core': { cls: 'core' },
     'Greater Depth': { cls: 'depth' }
   };
+
+  let currentLesson = null; // { objective, yearGroup, activities } for whatever is on screen now
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -357,10 +473,18 @@
     btn.disabled = true;
     btn.textContent = 'Chalking up activities…';
     results.innerHTML = '<div class="status-card"><h3>One moment</h3>Sketching out three versions of this lesson…</div>';
+    saveRow.style.display = 'none';
+    saveStatus.textContent = '';
+    saveStatus.className = 'save-status';
+    currentLesson = null;
 
     try {
       const activities = await generateActivities(objective, yearGroup);
-      renderActivities(activities);
+      results.innerHTML = activitiesToHtml(activities);
+      currentLesson = { objective, yearGroup, activities };
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save this lesson';
+      saveRow.style.display = 'flex';
     } catch (err) {
       console.error(err);
       results.innerHTML = `
@@ -373,6 +497,92 @@
       btn.textContent = 'Generate activities';
     }
   });
+
+  saveBtn.addEventListener('click', async () => {
+    if (!currentLesson) return;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    saveStatus.textContent = '';
+    saveStatus.className = 'save-status';
+
+    try {
+      const response = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentLesson)
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Save failed');
+      }
+
+      saveStatus.textContent = 'Saved ✓';
+      saveStatus.className = 'save-status success';
+      savedListLoaded = false; // so it refreshes next time it's opened
+    } catch (err) {
+      console.error(err);
+      saveStatus.textContent = err.message || 'Could not save. Try again.';
+      saveStatus.className = 'save-status error';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save this lesson';
+    }
+  });
+
+  let savedListLoaded = false;
+
+  toggleSavedBtn.addEventListener('click', async () => {
+    const opening = savedList.style.display === 'none';
+    savedList.style.display = opening ? 'flex' : 'none';
+    toggleSavedBtn.textContent = opening ? 'Hide saved lessons' : 'View saved lessons';
+
+    if (opening && !savedListLoaded) {
+      savedList.innerHTML = '<p class="saved-empty">Loading…</p>';
+      try {
+        const response = await fetch('/api/lessons');
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Could not load saved lessons');
+        }
+
+        renderSavedList(data.lessons || []);
+        savedListLoaded = true;
+      } catch (err) {
+        console.error(err);
+        savedList.innerHTML = `<p class="saved-empty">${escapeHtml(err.message || 'Could not load saved lessons.')}</p>`;
+      }
+    }
+  });
+
+  function renderSavedList(lessons) {
+    if (!lessons.length) {
+      savedList.innerHTML = '<p class="saved-empty">Nothing saved yet.</p>';
+      return;
+    }
+
+    savedList.innerHTML = lessons.map(lesson => {
+      const date = new Date(lesson.savedAt);
+      const dateStr = isNaN(date) ? '' : date.toLocaleDateString();
+      return `
+        <div class="saved-item">
+          <button type="button" class="saved-item-header" data-id="${escapeHtml(lesson.id)}">
+            <span class="obj">${escapeHtml(lesson.yearGroup)} — ${escapeHtml(lesson.objective)}</span>
+            <span class="meta">${escapeHtml(dateStr)}</span>
+          </button>
+          <div class="saved-item-body">
+            <div class="results">${activitiesToHtml(lesson.activities)}</div>
+          </div>
+        </div>`;
+    }).join('');
+
+    savedList.querySelectorAll('.saved-item-header').forEach(headerBtn => {
+      headerBtn.addEventListener('click', () => {
+        headerBtn.closest('.saved-item').classList.toggle('open');
+      });
+    });
+  }
 
   async function generateActivities(objective, yearGroup) {
     // This calls our own backend (api/generate.js), which holds the API key
@@ -399,8 +609,8 @@
     return parsed;
   }
 
-  function renderActivities(activities) {
-    results.innerHTML = activities.map(a => {
+  function activitiesToHtml(activities) {
+    return activities.map(a => {
       const meta = LEVEL_META[a.level] || { cls: 'core' };
       return `
         <article class="card ${meta.cls}">
